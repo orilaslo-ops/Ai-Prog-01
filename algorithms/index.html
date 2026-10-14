@@ -10,18 +10,8 @@
 </head>
 <body>
 <div class="layout">
-<nav class="side" aria-label="Subjects">
-  <p class="brand">O(<span>wow</span>)</p>
-  <p class="tagline">Hard CS ideas, animated.</p>
-  <h2>Subjects</h2>
-  <ul>
-    <li><a href="../#recursion">Recursion</a></li>
-  </ul>
-  <h2>Complex Algorithms</h2>
-  <ul>
-    <li><a href="./" aria-current="page">Overview</a></li>
-  </ul>
-</nav>
+<nav class="side" aria-label="Subjects"></nav>
+<script src="../nav.js"></script>
 <main>
   <h1>Complex <span>Algorithms</span></h1>
   <p class="lede">The algorithms that look like magic on the whiteboard, slowed down until every decision makes sense. Every page here works the same way:</p>
@@ -36,7 +26,9 @@
     <li><b>Predict the next step</b><span>Pause, guess what happens next, then see if you were right.</span></li>
   </ol>
 
-  <div class="empty">The first algorithms are on their way.</div>
+  <h2 class="section">Algorithms</h2>
+  <a class="algo-card" href="lcs.html"><b>Longest Common Subsequence</b><span>Dynamic programming: watch a table fill cell by cell, then trace the answer back. Compare it with plain recursion.</span></a>
+  <a class="algo-card" href="nqueens.html"><b>N-Queens</b><span>Backtracking: place queens row by row, hit dead ends, undo and try again. Then see every solution.</span></a>
 </main>
 </div>
 </body>
