@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recursion, Animated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbf3e8;
+    --surface: #fffaf3;
+    --border: #ecd9c3;
+    --ink: #3d2a20;
+    --muted: #8a6d5c;
+    --accent: #d9643f;      /* terracotta: active call */
+    --wait: #f2b45a;        /* amber: waiting on the stack */
+    --done: #7fae8c;        /* sage: returned */
+    --edge: #d8bfa6;
+    --code-bg: #3a2a22;
+    --code-ink: #f6e7d6;
+    --code-hl: #6b3a26;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #221a16;
+      --surface: #2c221d;
+      --border: #463529;
+      --ink: #f4e6d8;
+      --muted: #bfa290;
+      --accent: #ee7d55;
+      --wait: #e6a64c;
+      --done: #8fbf9b;
+      --edge: #5c4636;
+      --code-bg: #1a1310;
+      --code-hl: #5a2f1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 Inter, system-ui, sans-serif;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font: 700 clamp(28px, 5vw, 44px)/1.1 Fraunces, Georgia, serif; margin: 0 0 8px; }
+  h1 span { color: var(--accent); }
+  .lede { color: var(--muted); margin: 0 0 24px; max-width: 60ch; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 16px; margin-bottom: 16px;
+  }
+  button, select {
+    font: 600 15px Inter, sans-serif; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--wait); outline-offset: 2px; }
+  label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  input[type=range] { accent-color: var(--accent); }
+  .stats { margin-left: auto; color: var(--muted); font-size: 14px; }
+  .stats b { color: var(--ink); }
+
+  .caption {
+    font: 600 18px Inter, sans-serif; min-height: 1.6em;
+    padding: 10px 16px; margin-bottom: 16px;
+    border-left: 4px solid var(--accent); background: var(--surface); border-radius: 0 10px 10px 0;
+  }
+
+  .grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; min-width: 0; }
+  .panel h2 { font: 600 13px Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+
+  #tree { width: 100%; height: auto; display: block; }
+  .edge { stroke: var(--edge); stroke-width: 2; opacity: 0; transition: opacity .35s; }
+  .edge.shown { opacity: 1; }
+  .ret-label { font: 600 13px "JetBrains Mono", monospace; fill: var(--done); opacity: 0; transition: opacity .35s; }
+  .ret-label.shown { opacity: 1; }
+  .node { opacity: 0; transform: scale(.3); transform-box: fill-box; transform-origin: center; transition: opacity .35s, transform .35s cubic-bezier(.3,1.6,.5,1); }
+  .node.shown { opacity: 1; transform: scale(1); }
+  .node circle { fill: var(--surface); stroke: var(--wait); stroke-width: 3; transition: fill .3s, stroke .3s; }
+  .node text { font: 600 13px "JetBrains Mono", monospace; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+  .node.active circle { fill: var(--accent); stroke: var(--accent); }
+  .node.active text { fill: #fff; }
+  .node.done circle { fill: var(--done); stroke: var(--done); }
+  .node.done text { fill: #fff; }
+
+  .stack { display: flex; flex-direction: column-reverse; gap: 6px; min-height: 120px; }
+  .frame {
+    font: 600 14px "JetBrains Mono", monospace;
+    background: var(--wait); color: #3d2a20; border-radius: 8px; padding: 8px 12px;
+    animation: push .3s cubic-bezier(.3,1.6,.5,1);
+  }
+  .frame.top { background: var(--accent); color: #fff; }
+  .stack-empty { color: var(--muted); font-size: 14px; }
+  @keyframes push { from { transform: translateY(-16px); opacity: 0; } }
+
+  pre {
+    margin: 16px 0 0; padding: 12px 0; border-radius: 10px;
+    background: var(--code-bg); color: var(--code-ink);
+    font: 14px/1.7 "JetBrains Mono", monospace; overflow-x: auto;
+  }
+  pre div { padding: 0 14px; transition: background .25s; }
+  pre div.hl { background: var(--code-hl); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Recursion, <span>animated</span></h1>
+  <p class="lede">Watch <code>fib(n)</code> call itself. Every call waits on the stack until its children return, then hands its answer back up. Notice how often the same call is repeated.</p>
+
+  <div class="controls">
+    <label>n <select id="n"></select></label>
+    <button id="back" aria-label="Step back">◀ Back</button>
+    <button id="step" aria-label="Step forward">Step ▶</button>
+    <button id="play" class="primary">Play</button>
+    <button id="reset">Reset</button>
+    <label>Speed <input id="speed" type="range" min="1" max="10" value="5"></label>
+    <div class="stats">Calls: <b id="calls">0</b> · Max depth: <b id="depth">0</b></div>
+  </div>
+
+  <div class="caption" id="caption" aria-live="polite"></div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Call tree</h2>
+      <svg id="tree" role="img" aria-label="Recursion tree of fib calls"></svg>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>running now</span>
+        <span><i style="background:var(--wait)"></i>waiting for children</span>
+        <span><i style="background:var(--done)"></i>returned</span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Call stack</h2>
+      <div class="stack" id="stack"></div>
+      <pre id="code"><div>function fib(n) {</div><div>  if (n &lt; 2) return n;</div><div>  return fib(n - 1) + fib(n - 2);</div><div>}</div></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const SVG = 'http://www.w3.org/2000/svg';
+const DX = 64, DY = 78, R = 22, PAD = 30;
+let nodes, events, step, timer = null;
+
+for (let i = 1; i <= 7; i++) $('n').add(new Option(i, i, i === 5, i === 5));
+
+// Run fib once, recording every call/return as an event to replay.
+function trace(n) {
+  nodes = []; events = [];
+  (function fib(n, parent, depth) {
+    const me = { id: nodes.length, n, parent, depth, kids: [] };
+    nodes.push(me);
+    if (parent) parent.kids.push(me);
+    events.push({ t: 'call', node: me });
+    me.value = n < 2 ? n : fib(n - 1, me, depth + 1) + fib(n - 2, me, depth + 1);
+    events.push({ t: 'ret', node: me });
+    return me.value;
+  })(n, null, 0);
+
+  // Leaves get consecutive slots; parents sit centred over their children.
+  let slot = 0;
+  (function place(nd) {
+    nd.kids.forEach(place);
+    nd.x = nd.kids.length ? (nd.kids[0].x + nd.kids.at(-1).x) / 2 : PAD + R + DX * slot++;
+    nd.y = PAD + R + nd.depth * DY;
+  })(nodes[0]);
+}
+
+function build() {
+  const svg = $('tree');
+  const maxDepth = Math.max(...nodes.map(d => d.depth));
+  const w = Math.max(...nodes.map(d => d.x)) + R + PAD, h = PAD * 2 + R * 2 + maxDepth * DY;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.style.maxHeight = h + 'px';
+  svg.innerHTML = '';
+  for (const d of nodes) if (d.parent) {
+    d.edge = el('line', { class: 'edge', x1: d.parent.x, y1: d.parent.y, x2: d.x, y2: d.y });
+    d.label = el('text', { class: 'ret-label', x: (d.parent.x + d.x) / 2 + (d.x < d.parent.x ? -10 : 10), y: (d.parent.y + d.y) / 2, 'text-anchor': 'middle' });
+    d.label.textContent = d.value;
+  }
+  for (const d of nodes) {
+    d.g = el('g', { class: 'node' });
+    d.g.append(el('circle', { cx: d.x, cy: d.y, r: R }));
+    const t = el('text', { x: d.x, y: d.y });
+    t.textContent = d.n;
+    d.g.append(t);
+    d.title = el('title', {});
+    d.g.append(d.title);
+  }
+  function el(tag, attrs) {
+    const e = document.createElementNS(SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    svg.append(e);
+    return e;
+  }
+}
+
+// Replay events[0..step) from scratch, so Back works for free.
+function render() {
+  const called = new Set(), returned = new Set(), stack = [];
+  let maxDepth = 0;
+  for (const e of events.slice(0, step)) {
+    if (e.t === 'call') { called.add(e.node); stack.push(e.node); maxDepth = Math.max(maxDepth, stack.length); }
+    else { returned.add(e.node); stack.pop(); }
+  }
+  const top = stack.at(-1);
+  for (const d of nodes) {
+    d.g.classList.toggle('shown', called.has(d));
+    d.g.classList.toggle('active', d === top);
+    d.g.classList.toggle('done', returned.has(d));
+    d.title.textContent = returned.has(d) ? `fib(${d.n}) = ${d.value}` : `fib(${d.n})`;
+    if (d.edge) {
+      d.edge.classList.toggle('shown', called.has(d));
+      d.label.classList.toggle('shown', returned.has(d));
+    }
+  }
+
+  const st = $('stack');
+  st.innerHTML = stack.length ? '' : '<div class="stack-empty">Stack is empty</div>';
+  stack.forEach((d, i) => {
+    const f = document.createElement('div');
+    f.className = 'frame' + (d === top ? ' top' : '');
+    f.textContent = `fib(${d.n})`;
+    st.append(f);
+  });
+
+  const e = events[step - 1];
+  [...$('code').children].forEach((line, i) => line.classList.toggle('hl',
+    !!e && i === (e.t === 'call' ? 0 : e.node.n < 2 ? 1 : 2)));
+
+  $('caption').textContent = caption(e);
+  $('calls').textContent = called.size;
+  $('depth').textContent = maxDepth;
+  $('back').disabled = step === 0;
+  $('step').disabled = $('play').disabled = step === events.length;
+}
+
+function caption(e) {
+  if (!e) return `Press Step or Play to call fib(${nodes[0].n}).`;
+  const d = e.node, p = d.parent;
+  if (e.t === 'call') return p ? `fib(${p.n}) calls fib(${d.n})` + (d.n < 2 ? ' (base case)' : '') : `Start: call fib(${d.n})`;
+  const how = d.n < 2 ? `base case, so it returns ${d.value}` : `${d.kids[0].value} + ${d.kids[1].value} = ${d.value}`;
+  return p ? `fib(${d.n}): ${how}, returned to fib(${p.n})` : `Done! fib(${d.n}) = ${d.value}, using ${nodes.length} calls.`;
+}
+
+function setStep(s) { step = Math.max(0, Math.min(events.length, s)); render(); if (step === events.length) stop(); }
+function stop() { clearInterval(timer); timer = null; $('play').textContent = 'Play'; }
+function play() {
+  if (timer) return stop();
+  $('play').textContent = 'Pause';
+  timer = setInterval(() => setStep(step + 1), 1600 / $('speed').value);
+}
+function load() { stop(); trace(+$('n').value); build(); setStep(0); }
+
+$('n').onchange = load;
+$('step').onclick = () => { stop(); setStep(step + 1); };
+$('back').onclick = () => { stop(); setStep(step - 1); };
+$('reset').onclick = () => { stop(); setStep(0); };
+$('play').onclick = play;
+$('speed').oninput = () => { if (timer) { stop(); play(); } };
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight') { stop(); setStep(step + 1); }
+  if (e.key === 'ArrowLeft') { stop(); setStep(step - 1); }
+  if (e.key === ' ') { e.preventDefault(); play(); }
+});
+
+load();
+// self-check: trace matches real fib and every call returns
+console.assert(nodes[0].value === [0,1,1,2,3,5,8,13][nodes[0].n] && events.length === nodes.length * 2, 'fib trace broken');
+</script>
+</body>
+</html>
